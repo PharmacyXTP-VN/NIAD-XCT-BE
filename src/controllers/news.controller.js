@@ -2,6 +2,7 @@ const { default: mongoose } = require("mongoose");
 const db = require("../models");
 const { user: User, news: News } = db;
 const { GridFSBucket } = require("mongodb");
+const { uploadProductImageToCloudinary } = require("../util/cloudinary.service");
 
 //list news
 async function listNews(req, res, next) {
@@ -61,55 +62,58 @@ async function getNewsDetailById(req, res, next) {
 //create a news
 async function createNews(req, res, next) {
   try {
-    const { title, content, createdBy, updatedBy } = req.body;
+    const { 
+      title, content, summary, publishedAt, status, tags, 
+      createdBy, updatedBy 
+    } = req.body;
     const thumbnail = req.file;
+    
     if (!title || !content || !thumbnail) {
       return res
         .status(400)
         .send({ message: "Title, content and thumbnail are required" });
     }
 
-    // Kết nối tới GridFSBucket
-    const bucket = new GridFSBucket(mongoose.connection.db, {
-      bucketName: "uploads",
-    });
-
-    // Upload file vào GridFS
-    const uploadStream = bucket.openUploadStream(thumbnail.originalname);
-    uploadStream.end(thumbnail.buffer);
-
-    uploadStream.on("finish", async () => {
+    // Parse tags nếu có
+    let parsedTags = [];
+    if (tags) {
       try {
-        // Tạo một bài viết mới
-        const newNews = new News({
-          title: title,
-          content: content,
-          thumbnail: `/uploads/${uploadStream.id}`,
-          createdBy: createdBy,
-          updatedBy: updatedBy,
-        });
-
-        // Lưu bài viết vào MongoDB
-        const savedNews = await newNews.save();
-
-        // Trả về kết quả
-        res.status(200).json({
-          message: "News added successfully",
-          news: savedNews,
-        });
+        parsedTags = typeof tags === 'string' 
+          ? JSON.parse(tags) 
+          : tags;
       } catch (error) {
-        res.status(500).json({
-          message: "Error saving news",
-          error,
-        });
+        return res.status(400).json({ message: "Invalid tags format" });
       }
-    });
+    }
 
-    uploadStream.on("error", (err) => {
-      res.status(500).json({
-        message: "Error uploading thumbnail",
-        error: err,
-      });
+    // Tạo news object
+    const newsData = {
+      title: title,
+      content: content,
+      summary: summary || "",
+      thumbnail: "",
+      publishedAt: publishedAt ? new Date(publishedAt) : new Date(),
+      status: status || "active",
+      tags: parsedTags,
+      createdBy: createdBy,
+      updatedBy: updatedBy || createdBy,
+    };
+
+    const newNews = new News(newsData);
+
+    // Upload thumbnail lên Cloudinary
+    if (thumbnail) {
+      const url = await uploadProductImageToCloudinary(thumbnail.buffer, `news/${newNews._id}`);
+      newNews.thumbnail = url;
+    }
+
+    // Lưu bài viết vào MongoDB
+    const savedNews = await newNews.save();
+
+    // Trả về kết quả
+    res.status(201).json({
+      message: "News added successfully",
+      news: savedNews,
     });
   } catch (error) {
     console.error("Error creating news", error);
@@ -121,7 +125,10 @@ async function createNews(req, res, next) {
 async function updateNews(req, res, next) {
   try {
     const { id } = req.params;
-    const { title, content, updatedBy } = req.body;
+    const { 
+      title, content, summary, publishedAt, status, tags, 
+      updatedBy 
+    } = req.body;
     const thumbnail = req.file;
 
     if (!title || !content) {
@@ -129,51 +136,44 @@ async function updateNews(req, res, next) {
         .status(400)
         .send({ message: "Tiêu đề và nội dung là bắt buộc" });
     }
+    
     const news = await News.findById(id);
     if (!news) {
       return res.status(404).send({ message: "Không tìm thấy bài viết" });
     }
 
+    // Cập nhật các trường cơ bản
     if (title) news.title = title;
     if (content) news.content = content;
+    if (summary !== undefined) news.summary = summary;
+    if (publishedAt) news.publishedAt = new Date(publishedAt);
+    if (status) news.status = status;
     if (updatedBy) news.updatedBy = updatedBy;
 
-    if (thumbnail) {
-      const bucket = new GridFSBucket(mongoose.connection.db, {
-        bucketName: "uploads",
-      });
-
-      // Upload ảnh mới vào GridFS
-      const uploadStream = bucket.openUploadStream(thumbnail.originalname);
-      uploadStream.end(thumbnail.buffer);
-
-      // Khi hoàn thành upload ảnh mới, cập nhật thumbnail
-      uploadStream.on("finish", async () => {
-        // Cập nhật đường dẫn thumbnail
-        news.thumbnail = `/uploads/${uploadStream.id}`;
-
-        // Lưu bài viết sau khi cập nhật
-        await news.save();
-
-        res.status(200).json({
-          message: "News updated successfully",
-          news,
-        });
-      });
-
-      uploadStream.on("error", (err) => {
-        res
-          .status(500)
-          .json({ message: "Error uploading new thumbnail", error: err });
-      });
-    } else {
-      // Nếu không có ảnh mới, chỉ lưu lại title và content
-      await news.save();
-      res.status(200).json({
-        message: "News updated successfully",
-        news,
-      });
+    // Xử lý tags
+    if (tags !== undefined) {
+      try {
+        news.tags = typeof tags === 'string' 
+          ? JSON.parse(tags) 
+          : tags;
+      } catch (error) {
+        return res.status(400).json({ message: "Invalid tags format" });
+      }
     }
+
+    // Upload thumbnail mới lên Cloudinary nếu có
+    if (thumbnail) {
+      const url = await uploadProductImageToCloudinary(thumbnail.buffer, `news/${id}`);
+      news.thumbnail = url;
+    }
+
+    // Lưu bài viết sau khi cập nhật
+    await news.save();
+
+    res.status(200).json({
+      message: "News updated successfully",
+      news,
+    });
   } catch (error) {
     console.error("Error updating news", error);
     res.status(500).send({ message: error.message });

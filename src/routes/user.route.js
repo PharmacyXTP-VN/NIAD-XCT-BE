@@ -18,6 +18,8 @@ userRouter.delete("/delete/:userId", userController.deleteUserById);
 
 userRouter.post("/add", upload.single("image"), userController.addNewUser);
 
+userRouter.post("/login", userController.login);
+
 userRouter.get("/all-role", userController.getRoleName);
 
 userRouter.put(

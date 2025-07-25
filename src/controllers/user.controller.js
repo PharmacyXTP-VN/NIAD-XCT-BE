@@ -507,6 +507,28 @@ const getUserByIsActive = async (req, res, next) => {
   }
 };
 
+// Login user
+const login = async (req, res, next) => {
+  try {
+    const { userName, password } = req.body;
+    if (!userName || !password) {
+      return res.status(400).json({ message: "Missing userName or password" });
+    }
+    const user = await User.findOne({ userName });
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid password" });
+    }
+    res.status(200).json({ message: "Login successful", user: { id: user._id, userName: user.userName } });
+  } catch (error) {
+    console.error("Error logging in", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 const UserController = {
   getRoleName,
   viewProfile,
@@ -524,5 +546,6 @@ const UserController = {
   getImageById,
   getUserByCode,
   getUserByIsActive,
+  login,
 };
 module.exports = UserController;
