@@ -44,6 +44,7 @@ exports.homeSummary = async (req, res) => {
       {
         $group: {
           _id: { manufacturer: "$manufacturer", model: "$model", name: "$name" },
+          id: { $first: "$_id" },
           count: { $sum: 1 },
           price: { $first: "$price" },
           image: { $first: "$image" },
@@ -58,6 +59,7 @@ exports.homeSummary = async (req, res) => {
           _id: "$_id.manufacturer",
           models: {
             $push: {
+              id: "$id",
               model: "$_id.model",
               name: "$_id.name",
               count: "$count",
@@ -81,6 +83,19 @@ exports.homeSummary = async (req, res) => {
     );
     const summary = await Car.aggregate(pipeline);
     res.status(200).json({ message: "Get home car summary successfully", data: summary });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+exports.getProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const car = await Car.findById(id);
+    if (!car) {
+      return res.status(404).json({ message: "Product not found", data: null });
+    }
+    res.status(200).json({ message: "Get product successfully", data: car });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

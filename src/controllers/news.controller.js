@@ -6,10 +6,33 @@ const { GridFSBucket } = require("mongodb");
 //list news
 async function listNews(req, res, next) {
   try {
-    const news = await News.find();
+    let { page = 1, limit = 10 } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const filter = {};
+    const total = await News.countDocuments(filter);
+    const totalPages = Math.ceil(total / limit);
+
+    const news = await News.find(filter, {
+      title: 1,
+      summary: 1,
+      thumbnail: 1,
+      publishedAt: 1,
+      status: 1,
+      tags: 1
+    })
+      .sort({ publishedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
     res.status(200).json({
       message: "Get news successfully",
       data: news,
+      total,
+      totalPages,
+      page,
+      limit
     });
   } catch (error) {
     console.error("Error getting news", error);

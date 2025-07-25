@@ -4,5 +4,6 @@ const carController = require("../controllers/product.controller");
 
 router.get("/", carController.list);
 router.get("/home-summary", carController.homeSummary);
+router.get("/:id", carController.getProductById);
 
 module.exports = router;
