@@ -6,9 +6,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadProductImageToCloudinary = async (imageBuffer, folder) => {
+const uploadProductImageToCloudinary = async (imageBuffer, folder = 'uploads') => {
   return new Promise(async (resolve, reject) => {
     try {
+      if (!imageBuffer) {
+        reject(new Error('Empty file'));
+        return;
+      }
+
       // Chuyển buffer thành stream để upload lên Cloudinary
       const uploadStream = cloudinary.uploader.upload_stream(
         {

@@ -7,8 +7,16 @@ const carSchema = new Schema(
     price: { type: Number, required: true },
     color: { type: String },
     seats: { type: Number, required: true },
-    fuelType: { type: String, enum: ["petrol", "diesel", "electric"], required: true },
-    transmission: { type: String, enum: ["manual", "automatic"], required: true },
+    fuelType: {
+      type: String,
+      enum: ["petrol", "diesel", "electric"],
+      required: true,
+    },
+    transmission: {
+      type: String,
+      enum: ["manual", "automatic"],
+      required: true,
+    },
     manufacturer: { type: String },
     model: { type: String },
     name: { type: String, required: true },
@@ -19,27 +27,17 @@ const carSchema = new Schema(
       type: [
         {
           name: { type: String, required: true },
-          value: { type: String }
-        }
+          value: { type: String },
+        },
       ],
-      default: []
+      default: [],
     },
-    specifications: {
-      type: [
-        {
-          name: { type: String, required: true },
-          value: { type: String }
-        }
-      ],
-      default: []
-    },
-    // Images: object with front, back, left, right
+    highlightFeatures: { type: String, default: "" }, // HTML content from CKEditor
+    specifications: { type: String, default: "" }, // URL ảnh thông số kỹ thuật
+    // Images: main image and gallery images array
     images: {
-      main: { type: String, default: "" }, 
-      front: { type: String, default: "" },
-      back: { type: String, default: "" },
-      left: { type: String, default: "" },
-      right: { type: String, default: "" }
+      main: { type: String, default: "" },
+      gallery: [{ type: String }], // Array of image URLs for gallery
     },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
