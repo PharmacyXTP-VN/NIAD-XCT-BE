@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const { compressToSize } = require('./image-compress.service');
 
 // Đường dẫn tới thư mục public của frontend
 const getFrontendPublicPath = () => {
@@ -84,8 +85,13 @@ const saveImageToPublicFolder = async (fileBuffer, fileName, type) => {
     const filePath = path.join(folderPath, uniqueFileName);
 
     try {
-      // Ghi file
-      fs.writeFileSync(filePath, fileBuffer);
+      // Compress ảnh trước khi lưu (target: 8MB)
+      console.log(`Original file size: ${(fileBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+      const compressedBuffer = await compressToSize(fileBuffer, 8);
+      console.log(`Compressed file size: ${(compressedBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+      
+      // Ghi file đã compress
+      fs.writeFileSync(filePath, compressedBuffer);
       console.log(`Đã lưu file thành công tại: ${filePath}`);
       
       // Kiểm tra file đã được tạo chưa
@@ -94,7 +100,7 @@ const saveImageToPublicFolder = async (fileBuffer, fileName, type) => {
       }
       
       const fileSize = fs.statSync(filePath).size;
-      console.log(`Kích thước file đã lưu: ${fileSize} bytes`);
+      console.log(`Kích thước file đã lưu: ${(fileSize / 1024 / 1024).toFixed(2)}MB`);
       
       // Trả về đường dẫn URL tương đối để sử dụng trong frontend
       return `/images/${targetFolder}/${uniqueFileName}`;

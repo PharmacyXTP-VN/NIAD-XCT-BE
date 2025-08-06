@@ -1,5 +1,6 @@
 const ImageSetting = require("../models/image.setting.model");
 const { saveImageToPublicFolder, deleteImageFromPublicFolder } = require("../util/local-storage.service");
+const { uploadImageToCloudinary, deleteImageFromCloudinary } = require("../util/cloudinary.service");
 
 // Get all images of a specific type
 exports.getImagesByType = async (req, res) => {
@@ -50,8 +51,10 @@ exports.addImage = async (req, res) => {
       });
     }
     
-    // Lưu ảnh vào thư mục public
-    const imageUrl = await saveImageToPublicFolder(file.buffer, file.originalname, type);
+    // Upload ảnh lên Cloudinary thay vì local storage
+    console.log(`Uploading ${type} image to Cloudinary...`);
+    const imageUrl = await uploadImageToCloudinary(file.buffer, type, file.originalname);
+    console.log(`Image uploaded successfully: ${imageUrl}`);
     
     // Create new image setting
     const newImage = new ImageSetting({
@@ -99,12 +102,19 @@ exports.updateImage = async (req, res) => {
     
     // Update image URL if a new file is provided
     if (file) {
-      // Xóa ảnh cũ nếu có
+      // Xóa ảnh cũ nếu có (hỗ trợ cả Cloudinary và local)
       if (image.url) {
-        await deleteImageFromPublicFolder(image.url);
+        if (image.url.includes('cloudinary.com')) {
+          await deleteImageFromCloudinary(image.url);
+        } else {
+          await deleteImageFromPublicFolder(image.url);
+        }
       }
-      // Lưu ảnh mới
-      const imageUrl = await saveImageToPublicFolder(file.buffer, file.originalname, image.type);
+      
+      // Upload ảnh mới lên Cloudinary
+      console.log(`Updating ${image.type} image on Cloudinary...`);
+      const imageUrl = await uploadImageToCloudinary(file.buffer, image.type, file.originalname);
+      console.log(`Image updated successfully: ${imageUrl}`);
       image.url = imageUrl;
     }
     
@@ -136,9 +146,15 @@ exports.deleteImage = async (req, res) => {
       });
     }
     
-    // Xóa file ảnh từ thư mục public
+    // Xóa file ảnh (hỗ trợ cả Cloudinary và local)
     if (image.url) {
-      await deleteImageFromPublicFolder(image.url);
+      if (image.url.includes('cloudinary.com')) {
+        console.log(`Deleting image from Cloudinary: ${image.url}`);
+        await deleteImageFromCloudinary(image.url);
+      } else {
+        console.log(`Deleting image from local storage: ${image.url}`);
+        await deleteImageFromPublicFolder(image.url);
+      }
     }
     
     // Xóa record trong database
