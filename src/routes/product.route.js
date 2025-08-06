@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const carController = require("../controllers/product.controller");
+const specificationsController = require("../controllers/specifications.controller");
 const upload = require("../middlewares/upload");
 
 router.get("/", carController.list);
@@ -36,5 +37,9 @@ router.delete("/delete/:id", carController.deleteProduct);
 
 // Route để cập nhật chỉ gallery của sản phẩm
 router.put("/gallery/:id", carController.updateGallery);
+
+// Route để upload/update specifications image
+router.put("/specifications/:id", upload.single('specifications'), specificationsController.uploadSpecifications);
+router.patch("/specifications-url/:id", specificationsController.updateSpecificationsUrl);
 
 module.exports = router;
